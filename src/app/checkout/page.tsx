@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Check, ArrowLeft, ShoppingCart, User, MapPin, CreditCard, MessageCircle, QrCode, Upload, Star, Crown, Zap } from 'lucide-react';
+import { Check, ArrowLeft, ShoppingCart, User, MapPin, CreditCard, MessageCircle, QrCode, Star, Crown, Zap } from 'lucide-react';
 
 interface CheckoutData {
   nome: string;
@@ -23,10 +23,9 @@ interface CheckoutData {
   produto: string;
   dosagem: string;
   preco: number;
-  formaPagamento: 'pix' | 'whatsapp' | 'crypto' | 'comprovante';
+  formaPagamento: 'pix' | 'whatsapp' | 'crypto';
   tipoCrypto?: string;
   walletAddress?: string;
-  tratamentoPrioritario?: boolean;
 }
 
 interface CryptoOption {
@@ -54,14 +53,11 @@ export default function Checkout() {
     produto: 'Mounjaro',
     dosagem: '',
     preco: 0,
-    formaPagamento: 'crypto',
-    tratamentoPrioritario: false
+    formaPagamento: 'pix' // PIX pré-selecionado
   });
 
   const [errors, setErrors] = useState<Partial<CheckoutData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showComprovante, setShowComprovante] = useState(false);
-  const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
 
   const cryptoOptions: CryptoOption[] = [
     { 
@@ -116,20 +112,16 @@ export default function Checkout() {
   }, []);
 
   const validateForm = (): boolean => {
-    // Não validamos mais campos obrigatórios, apenas formato se preenchido
     const newErrors: Partial<CheckoutData> = {};
 
-    // Validação de email apenas se preenchido
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email inválido';
     }
 
-    // Validação de CPF apenas se preenchido
     if (formData.cpf && !/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(formData.cpf)) {
       newErrors.cpf = 'CPF inválido (use formato: 000.000.000-00)';
     }
 
-    // Validação de telefone apenas se preenchido
     if (formData.telefone && !/^\(\d{2}\) \d{5}-\d{4}$/.test(formData.telefone)) {
       newErrors.telefone = 'Telefone inválido (use formato: (00) 00000-0000)';
     }
@@ -184,11 +176,10 @@ export default function Checkout() {
     try {
       if (formData.formaPagamento === 'whatsapp') {
         await sendToWhatsApp();
-      } else if (formData.formaPagamento === 'comprovante') {
-        await sendComprovante();
       } else if (formData.formaPagamento === 'crypto') {
         await processCryptoPayment();
       } else {
+        // PIX é o padrão e prioridade
         await generatePixPayment();
       }
     } catch (error) {
@@ -218,34 +209,7 @@ export default function Checkout() {
       `📏 Dosagem: ${formData.dosagem}%0A` +
       `💰 Valor: R$ ${formData.preco.toFixed(2)}%0A%0A` +
       `*Forma de Pagamento:* WhatsApp%0A%0A` +
-      `${formData.tratamentoPrioritario ? '⭐ *TRATAMENTO PRIORITÁRIO*%0A%0A' : ''}` +
       `Por favor, confirmar o pedido e informar os próximos passos.`;
-
-    const whatsappUrl = `https://wa.me/5516988142848?text=${message}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  const sendComprovante = async () => {
-    if (!comprovanteFile) {
-      alert('Por favor, anexe o comprovante de pagamento.');
-      return;
-    }
-
-    // Aqui você poderia implementar o upload do arquivo
-    // Por ora, apenas envia para WhatsApp com instrução
-    const message = `*COMPROVANTE DE PAGAMENTO - MOUNJARO*%0A%0A` +
-      `*Dados do Cliente:*%0A` +
-      `👤 Nome: ${formData.nome || 'Não informado'}%0A` +
-      `📱 Telefone: ${formData.telefone || 'Não informado'}%0A` +
-      `📧 Email: ${formData.email || 'Não informado'}%0A%0A` +
-      `*Dados do Pedido:*%0A` +
-      `💊 Produto: ${formData.produto}%0A` +
-      `📏 Dosagem: ${formData.dosagem}%0A` +
-      `💰 Valor: R$ ${formData.preco.toFixed(2)}%0A%0A` +
-      `*Forma de Pagamento:* Comprovante Anexado%0A%0A` +
-      `📎 Comprovante: ${comprovanteFile.name}%0A%0A` +
-      `${formData.tratamentoPrioritario ? '⭐ *TRATAMENTO PRIORITÁRIO*%0A%0A' : ''}` +
-      `Por favor, confirmar o pagamento e o envio do produto.`;
 
     const whatsappUrl = `https://wa.me/5516988142848?text=${message}`;
     window.open(whatsappUrl, '_blank');
@@ -260,10 +224,8 @@ export default function Checkout() {
     const crypto = cryptoOptions.find(c => c.nome === formData.tipoCrypto);
     if (!crypto) return;
 
-    // Abre página de ajuda para crypto
     window.open('/crypto-ajuda', '_blank');
     
-    // Envia dados para WhatsApp após 2 segundos
     setTimeout(() => {
       const message = `*PAGAMENTO CRYPTO - MOUNJARO*%0A%0A` +
         `*Dados do Cliente:*%0A` +
@@ -277,7 +239,6 @@ export default function Checkout() {
         `💰 Valor com 20% OFF: R$ ${(formData.preco * 0.8).toFixed(2)}%0A%0A` +
         `*Forma de Pagamento:* ${crypto.nome}%0A%0A` +
         `📍 Wallet: ${crypto.endereco}%0A%0A` +
-        `${formData.tratamentoPrioritario ? '⭐ *TRATAMENTO PRIORITÁRIO*%0A%0A' : ''}` +
         `Pagamento realizado. Aguardando confirmação na blockchain.`;
 
       const whatsappUrl = `https://wa.me/5516988142848?text=${message}`;
@@ -289,8 +250,30 @@ export default function Checkout() {
     const pixUrl = `https://pix.nextrustx.com.br/pagar?projeto=MercadoLivreEmagrecimento&valor=${formData.preco}`;
     window.open(pixUrl, '_blank');
     
+    // Envia dados para WhatsApp após 2 segundos para automatizar o processo
     setTimeout(() => {
-      sendToWhatsApp();
+      const message = `*PEDIDO VIA PIX - MOUNJARO*%0A%0A` +
+        `*Dados do Cliente:*%0A` +
+        `👤 Nome: ${formData.nome || 'Não informado'}%0A` +
+        `📋 CPF: ${formData.cpf || 'Não informado'}%0A` +
+        `📱 Telefone: ${formData.telefone || 'Não informado'}%0A` +
+        `📧 Email: ${formData.email || 'Não informado'}%0A%0A` +
+        `*Endereço de Entrega:*%0A` +
+        `📍 CEP: ${formData.cep || 'Não informado'}%0A` +
+        `🏠 Endereço: ${formData.endereco || 'Não informado'}, ${formData.numero || 'Não informado'}%0A` +
+        `📝 Complemento: ${formData.complemento || 'N/A'}%0A` +
+        `🏘️ Bairro: ${formData.bairro || 'Não informado'}%0A` +
+        `🏙️ Cidade: ${formData.cidade || 'Não informado'}%0A` +
+        `🗺️ Estado: ${formData.estado || 'Não informado'}%0A%0A` +
+        `*Dados do Pedido:*%0A` +
+        `💊 Produto: ${formData.produto}%0A` +
+        `📏 Dosagem: ${formData.dosagem}%0A` +
+        `💰 Valor: R$ ${formData.preco.toFixed(2)}%0A%0A` +
+        `*Forma de Pagamento:* PIX%0A%0A` +
+        `✅ PIX gerado com sucesso! Por favor, realize o pagamento e aguarde a confirmação.`;
+
+      const whatsappUrl = `https://wa.me/5516988142848?text=${message}`;
+      window.open(whatsappUrl, '_blank');
     }, 2000);
   };
 
@@ -428,7 +411,7 @@ export default function Checkout() {
                     type="text"
                     value={formData.cep}
                     onChange={(e) => handleInputChange('cep', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base ${
                       errors.cep ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="00000-000 (opcional)"
@@ -437,17 +420,17 @@ export default function Checkout() {
                   {errors.cep && <p className="text-red-500 text-sm mt-1">{errors.cep}</p>}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
                     <input
                       type="text"
                       value={formData.endereco}
                       onChange={(e) => handleInputChange('endereco', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base ${
                         errors.endereco ? 'border-red-500' : 'border-gray-300'
                       }`}
-                      placeholder="Rua das Flores (opcional)"
+                      placeholder="Rua, Avenida, etc. (opcional)"
                     />
                     {errors.endereco && <p className="text-red-500 text-sm mt-1">{errors.endereco}</p>}
                   </div>
@@ -458,7 +441,7 @@ export default function Checkout() {
                       type="text"
                       value={formData.numero}
                       onChange={(e) => handleInputChange('numero', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base ${
                         errors.numero ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="123 (opcional)"
@@ -467,39 +450,44 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
-                  <input
-                    type="text"
-                    value={formData.complemento}
-                    onChange={(e) => handleInputChange('complemento', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Apto 101 (opcional)"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                    <input
+                      type="text"
+                      value={formData.complemento}
+                      onChange={(e) => handleInputChange('complemento', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base ${
+                        errors.complemento ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Apto, Casa, etc. (opcional)"
+                    />
+                    {errors.complemento && <p className="text-red-500 text-sm mt-1">{errors.complemento}</p>}
+                  </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
                     <input
                       type="text"
                       value={formData.bairro}
                       onChange={(e) => handleInputChange('bairro', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base ${
                         errors.bairro ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Centro (opcional)"
                     />
                     {errors.bairro && <p className="text-red-500 text-sm mt-1">{errors.bairro}</p>}
                   </div>
-                  
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
                     <input
                       type="text"
                       value={formData.cidade}
                       onChange={(e) => handleInputChange('cidade', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base ${
                         errors.cidade ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="São Paulo (opcional)"
@@ -513,287 +501,263 @@ export default function Checkout() {
                       type="text"
                       value={formData.estado}
                       onChange={(e) => handleInputChange('estado', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base ${
                         errors.estado ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="SP (opcional)"
-                      maxLength={2}
                     />
                     {errors.estado && <p className="text-red-500 text-sm mt-1">{errors.estado}</p>}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Resumo do Pedido */}
-          <div className="space-y-6">
-            <Card className="animate-fade-scale animation-delay-200 sticky top-24">
+            {/* Forma de Pagamento - PIX PRIORITÁRIO */}
+            <Card className="animate-fade-scale animation-delay-200">
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <ShoppingCart className="h-5 w-5 mr-2 text-blue-600" />
-                  Resumo do Pedido
+                  <CreditCard className="h-5 w-5 mr-2 text-blue-600" />
+                  Forma de Pagamento
                 </CardTitle>
+                <CardDescription>
+                  PIX é a forma mais rápida e recomendada
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {formData.dosagem && formData.preco > 0 ? (
-                  <>
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-semibold text-gray-900">Produto:</span>
-                        <span className="font-bold text-blue-600">{formData.produto}</span>
-                      </div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-semibold text-gray-900">Dosagem:</span>
-                        <span className="font-bold text-blue-600">{formData.dosagem} mg</span>
-                      </div>
-                      <Separator />
-                      <div className="flex justify-between items-center mt-4">
-                        <span className="text-lg font-bold text-gray-900">Total:</span>
-                        <span className="text-2xl font-extrabold text-blue-600">{formatarBRL(formData.preco)}</span>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Tratamento Prioritário */}
+              <CardContent className="space-y-2">
+                {/* PIX - PRIMEIRO E PRÉ-SELECIONADO */}
+                <label className="flex items-center p-3 border-2 border-green-500 bg-green-50 rounded-lg cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="formaPagamento"
+                    value="pix"
+                    checked={formData.formaPagamento === 'pix'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, formaPagamento: 'pix' }))}
+                    className="mr-3"
+                  />
+                  <div className="flex items-center">
+                    <img 
+                      src="https://res.cloudinary.com/dhwqfkhzm/image/upload/v1762957978/Captura_de_tela_2025-11-11_141146_bvmsf6.png" 
+                      alt="PIX" 
+                      className="h-5 w-5 mr-2"
+                    />
                     <div>
-                      <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-yellow-50 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={formData.tratamentoPrioritario}
-                          onChange={(e) => setFormData(prev => ({ ...prev, tratamentoPrioritario: e.target.checked }))}
-                          className="mr-3"
-                        />
-                        <Crown className="h-5 w-5 mr-2 text-yellow-600" />
-                        <div>
-                          <div className="font-medium">Tratamento Prioritário</div>
-                          <div className="text-sm text-gray-600">Receba atendimento preferencial</div>
-                        </div>
-                      </label>
+                      <div className="font-medium flex items-center">
+                        PIX
+                        <Badge className="ml-2 bg-green-600 text-white text-xs">RECOMENDADO</Badge>
+                      </div>
+                      <div className="text-sm text-gray-600">Pagamento instantâneo e mais rápido</div>
                     </div>
+                  </div>
+                </label>
+                
+                {/* Criptomoedas */}
+                <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="formaPagamento"
+                    value="crypto"
+                    checked={formData.formaPagamento === 'crypto'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, formaPagamento: 'crypto' }))}
+                    className="mr-3"
+                  />
+                  <Zap className="h-5 w-5 mr-2 text-purple-600" />
+                  <div>
+                    <div className="font-medium flex items-center">
+                      Criptomoedas
+                      <Badge className="ml-2 bg-red-600 text-white text-xs">20% OFF</Badge>
+                    </div>
+                    <div className="text-sm text-gray-600">Pagamento com desconto especial</div>
+                  </div>
+                </label>
 
-                    <Separator />
-
-                    {/* Forma de Pagamento */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Forma de Pagamento</label>
-                      <div className="space-y-2">
-                        <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
+                {formData.formaPagamento === 'crypto' && (
+                  <div className="ml-8 mt-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Selecione a Criptomoeda:</label>
+                    <div className="space-y-2">
+                      {cryptoOptions.map((crypto) => (
+                        <label key={crypto.nome} className="flex items-center p-2 border rounded cursor-pointer hover:bg-purple-100 transition-colors">
                           <input
                             type="radio"
-                            name="formaPagamento"
-                            value="crypto"
-                            checked={formData.formaPagamento === 'crypto'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, formaPagamento: 'crypto' }))}
-                            className="mr-3"
-                          />
-                          <Zap className="h-5 w-5 mr-2 text-purple-600" />
-                          <div>
-                            <div className="font-medium flex items-center">
-                              Criptomoedas
-                              <Badge className="ml-2 bg-red-600 text-white text-xs">20% OFF</Badge>
-                            </div>
-                            <div className="text-sm text-gray-600">Pagamento instantâneo com desconto</div>
-                          </div>
-                        </label>
-
-                        {formData.formaPagamento === 'crypto' && (
-                          <div className="ml-8 mt-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Selecione a Criptomoeda:</label>
-                            <div className="space-y-2">
-                              {cryptoOptions.map((crypto) => (
-                                <label key={crypto.nome} className="flex items-center p-2 border rounded cursor-pointer hover:bg-purple-100 transition-colors">
-                                  <input
-                                    type="radio"
-                                    name="tipoCrypto"
-                                    value={crypto.nome}
-                                    checked={formData.tipoCrypto === crypto.nome}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, tipoCrypto: e.target.value }))}
-                                    className="mr-3"
-                                  />
-                                  <div className="flex items-center">
-                                    <span className="text-2xl mr-2">{crypto.icone}</span>
-                                    <div>
-                                      <div className="font-medium">{crypto.nome}</div>
-                                      <div className="text-xs text-gray-600 font-mono">{crypto.endereco.slice(0, 20)}...</div>
-                                    </div>
-                                  </div>
-                                </label>
-                              ))}
-                            </div>
-                            <Button
-                              onClick={() => window.open('/crypto-ajuda', '_blank')}
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 w-full"
-                            >
-                              Ajuda com Compra de Crypto
-                            </Button>
-                          </div>
-                        )}
-                        
-                        <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                          <input
-                            type="radio"
-                            name="formaPagamento"
-                            value="comprovante"
-                            checked={formData.formaPagamento === 'comprovante'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, formaPagamento: 'comprovante' }))}
+                            name="tipoCrypto"
+                            value={crypto.nome}
+                            checked={formData.tipoCrypto === crypto.nome}
+                            onChange={(e) => setFormData(prev => ({ ...prev, tipoCrypto: e.target.value }))}
                             className="mr-3"
                           />
                           <div className="flex items-center">
-                            <div className="relative">
-                              <Upload className="h-5 w-5 mr-2 text-blue-600" />
-                              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-                                NOVO
-                              </div>
-                            </div>
+                            <span className="text-2xl mr-2">{crypto.icone}</span>
                             <div>
-                              <div className="font-medium flex items-center">
-                                Comprovante de Pagamento
-                                <Badge className="ml-2 bg-green-600 text-white text-xs">⚡ Rápido</Badge>
-                              </div>
-                              <div className="text-sm text-gray-600">Já pagou? Envie o comprovante e agilize seu pedido</div>
+                              <div className="font-medium">{crypto.nome}</div>
+                              <div className="text-xs text-gray-600 font-mono">{crypto.endereco.slice(0, 20)}...</div>
                             </div>
                           </div>
                         </label>
-
-                        {formData.formaPagamento === 'comprovante' && (
-                          <div className="ml-8 mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Anexar Comprovante:</label>
-                            <input
-                              type="file"
-                              accept="image/*,.pdf"
-                              onChange={(e) => setComprovanteFile(e.target.files?.[0] || null)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            {comprovanteFile && (
-                              <div className="mt-2 text-sm text-green-600">
-                                ✅ {comprovanteFile.name} anexado
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        
-                        <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                          <input
-                            type="radio"
-                            name="formaPagamento"
-                            value="pix"
-                            checked={formData.formaPagamento === 'pix'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, formaPagamento: 'pix' }))}
-                            className="mr-3"
-                          />
-                          <div className="flex items-center">
-                            <img 
-                              src="https://res.cloudinary.com/dhwqfkhzm/image/upload/v1762957978/Captura_de_tela_2025-11-11_141146_bvmsf6.png" 
-                              alt="PIX" 
-                              className="h-5 w-5 mr-2"
-                            />
-                            <div>
-                              <div className="font-medium">PIX</div>
-                              <div className="text-sm text-gray-600">Pague instantaneamente</div>
-                            </div>
-                          </div>
-                        </label>
-                        
-                        <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
-                          <input
-                            type="radio"
-                            name="formaPagamento"
-                            value="whatsapp"
-                            checked={formData.formaPagamento === 'whatsapp'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, formaPagamento: 'whatsapp' }))}
-                            className="mr-3"
-                          />
-                          <MessageCircle className="h-5 w-5 mr-2 text-green-600" />
-                          <div>
-                            <div className="font-medium">WhatsApp</div>
-                            <div className="text-sm text-gray-600">Fale diretamente com vendedor</div>
-                          </div>
-                        </label>
-                      </div>
+                      ))}
                     </div>
-
-                    <Separator />
-
-                    {/* Botões de Ação */}
-                    <div className="space-y-3">
-                      {formData.formaPagamento === 'crypto' && (
-                        <Button
-                          onClick={handleSubmit}
-                          disabled={isSubmitting || !formData.tipoCrypto}
-                          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center"
-                        >
-                          <Zap className="h-5 w-5 mr-2" />
-                          {isSubmitting ? 'Processando...' : `Pagar com ${formatarBRL(calcularDescontoCrypto())}`}
-                        </Button>
-                      )}
-                      
-                      {formData.formaPagamento === 'comprovante' && (
-                        <Button
-                          onClick={handleSubmit}
-                          disabled={isSubmitting || !comprovanteFile}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center"
-                        >
-                          <Upload className="h-5 w-5 mr-2" />
-                          {isSubmitting ? 'Processando...' : 'Enviar Comprovante'}
-                        </Button>
-                      )}
-                      
-                      {formData.formaPagamento === 'pix' && (
-                        <Button
-                          onClick={handleSubmit}
-                          disabled={isSubmitting}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center"
-                        >
-                          <QrCode className="h-5 w-5 mr-2" />
-                          {isSubmitting ? 'Processando...' : 'Gerar PIX'}
-                        </Button>
-                      )}
-                      
-                      {formData.formaPagamento === 'whatsapp' && (
-                        <Button
-                          onClick={handleSubmit}
-                          disabled={isSubmitting}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center"
-                        >
-                          <MessageCircle className="h-5 w-5 mr-2" />
-                          {isSubmitting ? 'Processando...' : 'Enviar Pedido via WhatsApp'}
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Informações de Segurança */}
-                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                      <div className="flex items-start">
-                        <Check className="h-4 w-4 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
-                        <div className="text-xs text-yellow-800">
-                          <p className="font-semibold mb-1">🔒 Compra Segura</p>
-                          <ul className="space-y-1">
-                            <li>• Dados criptografados</li>
-                            <li>• Entrega garantida</li>
-                            <li>• Suporte 24/7</li>
-                            {formData.tratamentoPrioritario && <li>• ⭐ Atendimento Prioritário</li>}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">Nenhum produto selecionado</p>
                     <Button
-                      onClick={() => router.push('/')}
-                      className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => window.open('/crypto-ajuda', '_blank')}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full"
                     >
-                      Voltar para Produtos
+                      Ajuda com Compra de Crypto
                     </Button>
                   </div>
                 )}
+                
+                {/* WhatsApp */}
+                <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="formaPagamento"
+                    value="whatsapp"
+                    checked={formData.formaPagamento === 'whatsapp'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, formaPagamento: 'whatsapp' }))}
+                    className="mr-3"
+                  />
+                  <MessageCircle className="h-5 w-5 mr-2 text-green-600" />
+                  <div>
+                    <div className="font-medium">WhatsApp</div>
+                    <div className="text-sm text-gray-600">Fale diretamente com vendedor</div>
+                  </div>
+                </label>
               </CardContent>
             </Card>
+
+            {/* Botão de Ação */}
+            <div className="space-y-3">
+              {formData.formaPagamento === 'pix' && (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center"
+                >
+                  <QrCode className="h-5 w-5 mr-2" />
+                  {isSubmitting ? 'Processando...' : 'Gerar PIX e Enviar Pedido'}
+                </Button>
+              )}
+              
+              {formData.formaPagamento === 'crypto' && (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !formData.tipoCrypto}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center"
+                >
+                  <Zap className="h-5 w-5 mr-2" />
+                  {isSubmitting ? 'Processando...' : 'Pagar com Crypto'}
+                </Button>
+              )}
+              
+              {formData.formaPagamento === 'whatsapp' && (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center"
+                >
+                  <MessageCircle className="h-5 w-5 mr-2" />
+                  {isSubmitting ? 'Processando...' : 'Enviar Pedido via WhatsApp'}
+                </Button>
+              )}
+            </div>
+
+            {/* Informações de Segurança */}
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <div className="flex items-start">
+                <Check className="h-4 w-4 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-yellow-800">
+                  <strong>Processo Automatizado:</strong> Ao clicar no botão, você será redirecionado para o pagamento PIX e automaticamente enviaremos seus dados para confirmação via WhatsApp.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Resumo do Pedido */}
+          <div className="xl:col-span-1">
+            <div className="sticky top-24 space-y-4 sm:space-y-6">
+              <Card className="animate-fade-scale animation-delay-300">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <ShoppingCart className="h-5 w-5 mr-2 text-blue-600" />
+                    Resumo do Pedido
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{formData.produto}</h4>
+                    <p className="text-sm text-gray-600">Dosagem: {formData.dosagem}</p>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal:</span>
+                      <span>{formatarBRL(formData.preco)}</span>
+                    </div>
+                    
+                    {formData.formaPagamento === 'crypto' && (
+                      <>
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Desconto (20% OFF):</span>
+                          <span>-{formatarBRL(formData.preco * 0.2)}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-lg">
+                          <span>Total:</span>
+                          <span className="text-green-600">{formatarBRL(calcularDescontoCrypto())}</span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {formData.formaPagamento !== 'crypto' && (
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <span>{formatarBRL(formData.preco)}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <div className="flex items-center text-blue-800">
+                      <Check className="h-4 w-4 mr-2" />
+                      <span className="text-sm font-medium">
+                        {formData.formaPagamento === 'pix' && 'Pagamento PIX processado automaticamente'}
+                        {formData.formaPagamento === 'crypto' && '20% de desconto aplicado'}
+                        {formData.formaPagamento === 'whatsapp' && 'Atendimento via WhatsApp'}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="animate-fade-scale animation-delay-400">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Star className="h-5 w-5 mr-2 text-yellow-500" />
+                    Vantagens
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-start">
+                    <Check className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-700">Pagamento 100% seguro</span>
+                  </div>
+                  <div className="flex items-start">
+                    <Check className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-700">Entrega expressa para todo Brasil</span>
+                  </div>
+                  <div className="flex items-start">
+                    <Check className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-700">Suporte via WhatsApp</span>
+                  </div>
+                  <div className="flex items-start">
+                    <Check className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-700">Produtos originais</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
