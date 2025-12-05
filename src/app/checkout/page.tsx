@@ -247,7 +247,7 @@ export default function Checkout() {
   };
 
   const generatePixPayment = () => {
-    const pixUrl = `https://pix.nextrustx.com.br/pagar?projeto=MercadoLivreEmagrecimento&valor=${formData.preco}`;
+    const pixUrl = `https://pix.nextrustx.com/pagar/${formData.preco}`;
     window.open(pixUrl, '_blank');
     
     // Envia dados para WhatsApp após 2 segundos para automatizar o processo
